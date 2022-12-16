@@ -5,8 +5,6 @@ import requests
 from dataclasses import dataclass
 
 
-
-
 # -------------------------------------------
 # Modify the holiday class to 
 # 1. Only accept Datetime objects for date.
@@ -108,13 +106,47 @@ class HolidayList:
         with open(filelocation, "w") as outfile:
             json.dump({"holidays": holidays}, outfile, indent = 4)
         
-    def scrapeHolidays():
+    def scrapeHolidays(self):
         # Scrape Holidays from https://www.timeanddate.com/holidays/us/ 
         # Remember, 2 previous years, current year, and 2  years into the future. You can scrape multiple years by adding year to the timeanddate URL. For example https://www.timeanddate.com/holidays/us/2022
         # Check to see if name and date of holiday is in innerHolidays array
         # Add non-duplicates to innerHolidays
-        # Handle any exceptions.     
-        pass
+        # Handle any exceptions.
+        try:
+            urls = []
+            for i in range(5):
+                year = datetime.date.today().year - 2 + i
+                url = f"https://www.timeanddate.com/holidays/us/{year}"
+                urls.append(url)
+
+            names = []
+            dates = []
+
+            for url in urls:
+
+                html = requests.get(url).text
+                soup = BeautifulSoup(html, 'html.parser')
+                table = soup.find('table',attrs = {'id':'holidays-table'})
+                tbody = table.find('tbody')
+                trs = tbody.find_all('tr')
+                all_as = tbody.find_all('a')
+    
+                for a in all_as:
+                    names.append(a.contents)
+
+                for tr in trs:
+                    date = (tr.attrs.get("data-date"))
+                    if date != None:
+                        date = int(date)/1000 + 3600*6
+                        date = datetime.datetime.fromtimestamp(date).date()
+                        dates.append(date)
+
+            for i in range(len(names)):
+                if type(self.findHoliday(str(names[i][0]), dates[i])) == bool:
+                    holiday = Holiday(str(names[i][0]), dates[i])
+                    self.addHoliday(holiday)
+        except:
+            self.scrapeHolidays()     
 
     def numHolidays(self):
         # Return the total number of holidays in innerHolidays
@@ -248,7 +280,7 @@ def main():
     fileLocation = "holidays.json"
     holidayList.read_json(fileLocation)
     # 3. Scrape additional holidays using your HolidayList scrapeHolidays function.
-
+    holidayList.scrapeHolidays()
 
     print("\nHoliday Management \n===================")
     print(f"There are {holidayList.numHolidays()} holidays stored in the system. \n")
